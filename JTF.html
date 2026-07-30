@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trivia Bíblica — Noche de Juegos</title>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --bg-1: #0e0a2a;
+        --bg-2: #1a1354;
+        --card: #201a52;
+        --card-light: #2b2368;
+        --gold: #ffc857;
+        --pink: #ff5d8f;
+        --teal: #2dd4bf;
+        --purple: #a78bfa;
+        --text: #f6f3ff;
+        --text-dim: #b6ade0;
+        --correct: #2dd4bf;
+        --wrong: #ff5d8f;
+        --border: rgba(255, 255, 255, 0.12);
+        --radius: 22px;
+        --shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: 'Inter', sans-serif;
+        color: var(--text);
+        background: radial-gradient(circle at 20% -10%, #3a2a8f 0%, transparent 45%),
+                    radial-gradient(circle at 90% 10%, #6a1e5c 0%, transparent 40%),
+                    linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
+        background-attachment: fixed;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        padding: 28px 16px 60px;
+        overflow-x: hidden;
+    }
+
+    /* rayos de luz tipo escenario */
+    body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background:
+            conic-gradient(from 200deg at 15% 0%, rgba(255,200,87,0.09), transparent 30%),
+            conic-gradient(from 40deg at 85% 0%, rgba(255,93,143,0.09), transparent 30%);
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .container { width: 100%; max-width: 780px; position: relative; z-index: 1; }
+
+    .header { text-align: center; margin-bottom: 26px; }
+    .header .icon-cross { font-size: 40px; display: block; animation: pulse 2.6s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
+    .header h1 {
+        font-family: 'Baloo 2', sans-serif;
+        font-size: 2.4rem;
+        font-weight: 800;
+        background: linear-gradient(90deg, var(--gold), var(--pink));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        letter-spacing: 0.5px;
+    }
+    .header .subtitle { color: var(--text-dim); font-size: 1rem; margin-top: 6px; font-weight: 500; }
+
+    .screen { display: none; }
+    .screen.active { display: block; animation: fadeIn 0.35s ease; }
+    @keyframes fadeIn { from{opacity:0; transform: translateY(6px)} to{opacity:1; transform:none} }
+
+    .card {
+        background: linear-gradient(180deg, var(--card), var(--card-light));
+        border-radius: var(--radius);
+        padding: 34px 28px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--border);
+    }
+
+    .btn {
+        display: inline-block;
+        padding: 15px 34px;
+        border-radius: 50px;
+        font-size: 1.05rem;
+        font-family: 'Baloo 2', sans-serif;
+        font-weight: 700;
+        cursor: pointer;
+        border: none;
+        transition: all .2s ease;
+        letter-spacing: 0.3px;
+    }
+    .btn-primary { background: linear-gradient(90deg, var(--gold), #ffb238); color: #23163a; box-shadow: 0 6px 18px rgba(255,200,87,0.35); }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(255,200,87,0.45); }
+    .btn-outline { background: transparent; color: var(--text); border: 2px solid var(--border); }
+    .btn-outline:hover { border-color: var(--pink); color: var(--pink); }
+    .qcount-btn.qcount-active { border-color: var(--gold); color: var(--gold); background: rgba(255,200,87,0.1); }
+    .btn-small { padding: 10px 22px; font-size: 0.9rem; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    /* ===== INICIO: elegir modo ===== */
+    .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 24px 0 8px; }
+    @media (max-width: 560px) { .mode-grid { grid-template-columns: 1fr; } }
+    .mode-card {
+        background: rgba(255,255,255,0.04);
+        border: 2px solid var(--border);
+        border-radius: 18px;
+        padding: 22px 18px;
+        text-align: center;
+        cursor: pointer;
+        transition: all .2s ease;
+    }
+    .mode-card:hover { border-color: var(--gold); background: rgba(255,200,87,0.08); transform: translateY(-3px); }
+    .mode-card .emoji { font-size: 2.4rem; display: block; margin-bottom: 8px; }
+    .mode-card h3 { font-family: 'Baloo 2', sans-serif; font-size: 1.15rem; margin-bottom: 6px; }
+    .mode-card p { color: var(--text-dim); font-size: 0.88rem; line-height: 1.5; }
+
+    .start-card { text-align: center; }
+    .start-card p.lead { color: var(--text-dim); line-height: 1.7; margin-bottom: 6px; }
+
+    /* ===== CONFIGURAR EQUIPOS ===== */
+    .team-setup-row {
+        display: flex; align-items: center; gap: 14px;
+        background: rgba(255,255,255,0.04);
+        border: 2px solid var(--border);
+        border-radius: 14px;
+        padding: 12px 16px;
+        margin-bottom: 12px;
+    }
+    .team-color-dot { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 0 3px rgba(255,255,255,0.15); }
+    .team-setup-row input[type="text"] {
+        flex: 1; background: transparent; border: none; color: var(--text);
+        font-family: 'Inter'; font-size: 1rem; font-weight: 600; outline: none;
+    }
+    .team-count-controls { display: flex; justify-content: center; align-items: center; gap: 18px; margin: 18px 0 22px; }
+    .team-count-controls button {
+        width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--border);
+        background: transparent; color: var(--text); font-size: 1.3rem; cursor: pointer;
+    }
+    .team-count-controls button:hover { border-color: var(--gold); color: var(--gold); }
+    .team-count-controls span { font-family: 'Baloo 2'; font-size: 1.3rem; min-width: 22px; text-align: center; }
+
+    /* ===== SCOREBOARD (equipos) ===== */
+    .scoreboard { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+    .team-chip {
+        flex: 1; min-width: 120px;
+        background: rgba(255,255,255,0.04);
+        border: 2px solid transparent;
+        border-radius: 14px;
+        padding: 10px 14px;
+        text-align: center;
+        transition: all .3s ease;
+    }
+    .team-chip.active-team { border-color: var(--gold); background: rgba(255,200,87,0.1); transform: scale(1.04); }
+    .team-chip .t-name { font-size: 0.78rem; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .team-chip .t-score { font-family: 'Baloo 2'; font-size: 1.6rem; font-weight: 700; }
+
+    .turn-banner {
+        text-align: center; padding: 10px; border-radius: 14px; margin-bottom: 16px;
+        font-family: 'Baloo 2'; font-size: 1.1rem; font-weight: 700;
+        background: rgba(255,255,255,0.05); border: 2px dashed var(--border);
+    }
+
+    .buzz-btn {
+        display: flex; align-items: center; justify-content: center; gap: 10px;
+        width: 100%; padding: 20px; border-radius: 16px; cursor: pointer;
+        font-family: 'Baloo 2'; font-size: 1.15rem; font-weight: 700;
+        border: 3px solid var(--border); background: rgba(255,255,255,0.05);
+        color: var(--text); transition: all .15s ease;
+    }
+    .buzz-btn:hover { transform: scale(1.02); }
+    .buzz-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+    /* ===== TEMPORIZADOR ===== */
+    .timer-wrap { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+    .timer-bar-bg { flex: 1; height: 12px; background: rgba(255,255,255,0.08); border-radius: 20px; overflow: hidden; }
+    .timer-bar { height: 100%; background: linear-gradient(90deg, var(--teal), var(--gold)); border-radius: 20px; transition: width 1s linear, background 0.3s; }
+    .timer-bar.low { background: linear-gradient(90deg, var(--wrong), #ff8a5c); }
+    .timer-num { font-family: 'Baloo 2'; font-size: 1.2rem; min-width: 34px; text-align: center; }
+    .timer-controls button {
+        background: transparent; border: 2px solid var(--border); color: var(--text-dim);
+        border-radius: 10px; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; font-family: 'Inter'; font-weight: 600;
+    }
+    .timer-controls button:hover { border-color: var(--teal); color: var(--teal); }
+
+    .quiz-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+    .quiz-counter { font-size: 0.9rem; color: var(--text-dim); font-weight: 600; }
+
+    .reference-box {
+        background: rgba(255,200,87,0.08);
+        border: 2px dashed var(--gold);
+        border-radius: 14px;
+        padding: 14px 18px;
+        text-align: center;
+        margin-bottom: 18px;
+    }
+    .reference-box .book-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--gold); font-weight: 700; }
+    .reference-box .book-ref { font-size: 1.5rem; font-weight: 700; font-family: 'Baloo 2'; color: var(--text); }
+
+    .question-text { font-size: 1.2rem; line-height: 1.6; margin-bottom: 20px; font-weight: 600; }
+
+    .options { display: flex; flex-direction: column; gap: 12px; margin-bottom: 18px; }
+    .option-btn {
+        display: flex; align-items: center; gap: 12px;
+        width: 100%; text-align: left; padding: 16px 20px;
+        border: 2px solid var(--border); border-radius: 14px;
+        background: rgba(255,255,255,0.04);
+        cursor: pointer; font-family: 'Inter'; font-size: 1.02rem; font-weight: 500;
+        color: var(--text); transition: all .15s ease;
+    }
+    .option-btn .opt-letter {
+        width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.08);
+        display: flex; align-items: center; justify-content: center; font-family: 'Baloo 2'; font-weight: 700; flex-shrink: 0;
+    }
+    .option-btn:hover { border-color: var(--gold); background: rgba(255,200,87,0.08); transform: translateX(4px); }
+    .option-btn.correct { border-color: var(--correct); background: rgba(45,212,191,0.15); }
+    .option-btn.wrong { border-color: var(--wrong); background: rgba(255,93,143,0.15); }
+    .option-btn.option-disabled { pointer-events: none; opacity: 0.75; }
+
+    .feedback { display: none; padding: 16px 18px; border-radius: 14px; margin-bottom: 16px; font-size: 0.98rem; line-height: 1.6; }
+    .feedback.show { display: block; }
+    .feedback.correct-fb { background: rgba(45,212,191,0.12); border-left: 4px solid var(--correct); }
+    .feedback.wrong-fb { background: rgba(255,93,143,0.12); border-left: 4px solid var(--wrong); }
+    .feedback .bonus { color: var(--gold); font-weight: 700; }
+
+    .btn-next { display: none; width: 100%; text-align: center; }
+    .btn-next.show { display: inline-block; }
+
+    /* ===== RESULTADOS ===== */
+    .result-card { text-align: center; }
+    .result-icon { font-size: 70px; display: block; margin-bottom: 10px; }
+    .podium { display: flex; align-items: flex-end; justify-content: center; gap: 12px; margin: 26px 0 10px; }
+    .podium-spot { flex: 1; max-width: 130px; }
+    .podium-bar {
+        border-radius: 12px 12px 0 0; display: flex; flex-direction: column; align-items: center;
+        justify-content: flex-end; padding: 10px 6px; color: #23163a; font-weight: 800; font-family: 'Baloo 2';
+    }
+    .podium-1 .podium-bar { height: 150px; background: linear-gradient(180deg, #ffe08a, var(--gold)); }
+    .podium-2 .podium-bar { height: 110px; background: linear-gradient(180deg, #d8d8f0, #b8b0e0); }
+    .podium-3 .podium-bar { height: 80px; background: linear-gradient(180deg, #f0b98a, #e0925a); }
+    .podium-spot .p-medal { font-size: 1.6rem; }
+    .podium-spot .p-name { font-family: 'Baloo 2'; font-size: 0.95rem; margin-top: 8px; }
+    .podium-spot .p-score { color: var(--text-dim); font-size: 0.85rem; }
+
+    .result-score { font-family: 'Baloo 2'; font-size: 3.6rem; font-weight: 800; line-height: 1; color: var(--gold); }
+    .result-total { color: var(--text-dim); margin-bottom: 8px; }
+    .result-msg { font-size: 1.15rem; margin-bottom: 20px; font-weight: 600; }
+
+    @media (max-width: 600px) {
+        .card { padding: 24px 18px; }
+        .header h1 { font-size: 1.8rem; }
+        .question-text { font-size: 1.05rem; }
+        .btn { padding: 13px 26px; font-size: 0.95rem; }
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <span class="icon-cross">✝️</span>
+        <h1>Trivia Bíblica</h1>
+        <p class="subtitle">Noche de juegos — busca, responde y suma puntos para tu equipo</p>
+    </div>
+
+    <!-- PANTALLA: ELEGIR MODO -->
+    <div id="startScreen" class="screen active">
+        <div class="card start-card">
+            <div id="resumeBanner" style="display:none; background:rgba(255,200,87,0.1); border:2px dashed var(--gold); border-radius:14px; padding:14px 16px; margin-bottom:18px; text-align:left;">
+                <span style="display:block; margin-bottom:10px; color: var(--text-dim); font-size:0.9rem;"></span>
+                <button class="btn btn-primary btn-small" onclick="continueGame()">▶ Continuar donde quedamos</button>
+            </div>
+            <p class="lead">Elige cómo van a jugar hoy:</p>
+
+            <p style="color: var(--text-dim); font-size:0.85rem; margin: 18px 0 8px; text-align:center;">¿Cuántas preguntas? (de un banco de 100, salen al azar)</p>
+            <div id="questionCountRow" style="display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin-bottom: 18px;">
+                <button class="btn btn-outline btn-small qcount-btn" data-n="10" onclick="setQuestionCount(10)">10</button>
+                <button class="btn btn-outline btn-small qcount-btn" data-n="15" onclick="setQuestionCount(15)">15</button>
+                <button class="btn btn-outline btn-small qcount-btn" data-n="20" onclick="setQuestionCount(20)">20</button>
+                <button class="btn btn-outline btn-small qcount-btn" data-n="30" onclick="setQuestionCount(30)">30</button>
+            </div>
+
+            <div class="mode-grid">
+                <div class="mode-card" onclick="startFresh(goToTeamSetup)">
+                    <span class="emoji">🏆</span>
+                    <h3>Por Equipos</h3>
+                    <p>Ideal para el culto. Formen equipos, se turnan, ganan puntos y hay podio final.</p>
+                </div>
+                <div class="mode-card" onclick="startFresh(startIndividual)">
+                    <span class="emoji">🙋</span>
+                    <h3>Individual</h3>
+                    <p>Cada quien juega desde su celular, a su ritmo, buscando en su Biblia.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANTALLA: CONFIGURAR EQUIPOS -->
+    <div id="teamSetupScreen" class="screen">
+        <div class="card">
+            <h3 style="font-family:'Baloo 2'; text-align:center; margin-bottom:4px;">¿Cuántos equipos?</h3>
+            <div class="team-count-controls">
+                <button onclick="changeTeamCount(-1)">−</button>
+                <span id="teamCountLabel">2</span>
+                <button onclick="changeTeamCount(1)">+</button>
+            </div>
+            <div id="teamNameInputs"></div>
+            <div style="text-align:center; margin-top: 20px;">
+                <button class="btn btn-primary" onclick="startTeamMode()">🎮 ¡Empezar el juego!</button>
+            </div>
+            <p style="text-align:center; color: var(--text-dim); font-size: 0.85rem; margin-top: 14px;">
+                Así se juega: los equipos se turnan, cada uno recibe su propia pregunta. Busquen en su Biblia y respondan lo más rápido posible — entre más pronto contesten, más puntos ganan.
+            </p>
+        </div>
+    </div>
+
+    <!-- PANTALLA: JUEGO -->
+    <div id="quizScreen" class="screen">
+        <div class="card">
+            <div class="scoreboard" id="scoreboard"></div>
+            <div class="turn-banner" id="turnBanner" style="display:none;"></div>
+            <div class="options" id="buzzButtons" style="display:none;"></div>
+
+            <div class="timer-wrap">
+                <div class="timer-bar-bg"><div class="timer-bar" id="timerBar" style="width:100%;"></div></div>
+                <div class="timer-num" id="timerNum">40</div>
+                <div class="timer-controls">
+                    <button id="pauseBtn" onclick="togglePause()">⏸ Pausar</button>
+                </div>
+            </div>
+
+            <div class="quiz-header">
+                <span class="quiz-counter" id="quizCounter">Pregunta 1 / 10</span>
+            </div>
+
+            <div class="reference-box">
+                <div class="book-label">📖 Busquen en:</div>
+                <div class="book-ref" id="bookRef">Mateo 4:4</div>
+            </div>
+
+            <div class="question-text" id="questionText"></div>
+
+            <div class="options" id="optionsContainer"></div>
+
+            <div class="feedback" id="feedback"></div>
+
+            <button class="btn btn-primary btn-next" id="btnNext" onclick="nextQuestion()">Siguiente ▶</button>
+        </div>
+    </div>
+
+    <!-- PANTALLA: RESULTADOS -->
+    <div id="resultScreen" class="screen">
+        <div class="card result-card">
+            <span class="result-icon" id="resultIcon">🏆</span>
+            <div id="individualResultBlock" style="display:none;">
+                <div class="result-score" id="resultScore">0</div>
+                <div class="result-total">de 10 aciertos</div>
+            </div>
+            <div id="teamResultBlock" style="display:none;">
+                <div class="podium" id="podium"></div>
+            </div>
+            <p class="result-msg" id="resultMsg"></p>
+            <button class="btn btn-primary" onclick="clearSavedState(); location.reload();">🔄 Jugar de nuevo</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ==================== BANCO DE PREGUNTAS ====================
+const questionBank = [
+{ reference:"Mateo 4:4", question:"Cuando Jesús fue tentado en el desierto, ¿qué respondió cuando el diablo le sugirió convertir las piedras en pan?",
+  options:["No solo de pan vivirá el hombre, sino de toda palabra que sale de la boca de Dios","Apártate de mí, Satanás","Mi reino no es de este mundo","El que cree en mí, aunque esté muerto, vivirá"],
+  correct:0, verse:"\"No solo de pan vivirá el hombre, sino de toda palabra que sale de la boca de Dios.\" — Mateo 4:4" },
+{ reference:"Salmo 119:105", question:"Según el salmista, ¿qué es la palabra de Dios para nuestro camino?",
+  options:["Una espada afilada","Lámpara es a mis pies tu palabra, y lumbrera a mi camino","Un escudo protector","Pan de vida eterna"],
+  correct:1, verse:"\"Lámpara es a mis pies tu palabra, y lumbrera a mi camino.\" — Salmo 119:105" },
+{ reference:"Proverbios 4:20-22", question:"¿Qué dice Proverbios 4:22 que son las palabras de Dios para quienes las hallan?",
+  options:["Riquezas y honra","Sabiduría y entendimiento","Son vida a los que las hallan, y medicina a todo su cuerpo","Protección contra los enemigos"],
+  correct:2, verse:"\"Porque son vida a los que las hallan, y medicina a todo su cuerpo.\" — Proverbios 4:22" },
+{ reference:"Juan 1:1", question:"¿Cómo comienza el Evangelio de Juan describiendo al Verbo (la Palabra)?",
+  options:["El Verbo se hizo carne y habitó entre nosotros","En el principio era el Verbo, y el Verbo era con Dios, y el Verbo era Dios","El Verbo es la luz de los hombres","La ley fue dada por medio de Moisés, pero la gracia y la verdad vinieron por Jesucristo"],
+  correct:1, verse:"\"En el principio era el Verbo, y el Verbo era con Dios, y el Verbo era Dios.\" — Juan 1:1" },
+{ reference:"Hebreos 4:12", question:"¿Cómo describe Hebreos 4:12 la palabra de Dios?",
+  options:["Como un martillo que despedraza la roca","Como lluvia que riega la tierra","Viva y eficaz, más cortante que toda espada de dos filos","Como fuego que purifica el oro"],
+  correct:2, verse:"\"Porque la palabra de Dios es viva y eficaz, y más cortante que toda espada de dos filos...\" — Hebreos 4:12" },
+{ reference:"Isaías 55:11", question:"¿Qué promete Dios acerca de Su palabra en Isaías 55:11?",
+  options:["Que será olvidada por las generaciones","Que no volverá a mí vacía, sino que hará lo que yo quiero","Que solo los sabios la entenderán","Que permanecerá escondida para los orgullosos"],
+  correct:1, verse:"\"Así será mi palabra que sale de mi boca; no volverá a mí vacía, sino que hará lo que yo quiero...\" — Isaías 55:11" },
+{ reference:"Santiago 1:22", question:"¿Qué exhortación nos da Santiago respecto a la palabra de Dios?",
+  options:["Lean la Biblia todos los días","Sed hacedores de la palabra, y no tan solamente oidores","Compren una Biblia para cada hogar","Memoricen versículos cada semana"],
+  correct:1, verse:"\"Pero sed hacedores de la palabra, y no tan solamente oidores, engañándoos a vosotros mismos.\" — Santiago 1:22" },
+{ reference:"Juan 8:31-32", question:"Según Jesús, ¿qué sucede si permanecemos en Su palabra?",
+  options:["Recibiremos riquezas materiales","Seremos famosos entre las naciones","Conoceréis la verdad, y la verdad os hará libres","Nunca enfrentaremos dificultades"],
+  correct:2, verse:"\"Si vosotros permaneciereis en mi palabra, seréis verdaderamente mis discípulos; y conoceréis la verdad, y la verdad os hará libres.\" — Juan 8:31-32" },
+{ reference:"Josué 1:8", question:"¿Qué instrucción dio Dios a Josué acerca del libro de la ley?",
+  options:["Que lo escribiera en piedras","Que nunca se apartara de su boca, y meditara en él de día y de noche","Que lo escondiera en el arca","Que se lo enseñara solo a los sacerdotes"],
+  correct:1, verse:"\"Nunca se apartará de tu boca este libro de la ley, sino que de día y de noche meditarás en él...\" — Josué 1:8" },
+{ reference:"2 Timoteo 3:16-17", question:"¿Para qué es útil toda la Escritura, según Pablo?",
+  options:["Para decorar nuestros hogares","Para debatir con los fariseos","Para enseñar, redargüir, corregir e instruir en justicia","Solo para los pastores y líderes de la iglesia"],
+  correct:2, verse:"\"Toda la Escritura es inspirada por Dios, y útil para enseñar, para redargüir, para corregir, para instruir en justicia...\" — 2 Timoteo 3:16" },
+
+{ reference:"Génesis 1:1", question:"¿Qué creó Dios en el principio, según el primer versículo de la Biblia?",
+  options:["Solo la tierra","Los cielos y la tierra","El sol y la luna","Al hombre y la mujer"],
+  correct:1, verse:"\"En el principio creó Dios los cielos y la tierra.\" — Génesis 1:1" },
+{ reference:"Génesis 1:26-31", question:"¿En qué día de la creación hizo Dios al hombre?",
+  options:["Cuarto día","Quinto día","Sexto día","Séptimo día"],
+  correct:2, verse:"Dios creó al hombre a su imagen el sexto día, y descansó el séptimo." },
+{ reference:"Génesis 2:21-22", question:"¿De qué formó Dios a la mujer para Adán?",
+  options:["De polvo de la tierra","De una costilla de Adán","De barro del jardín","De una semilla"],
+  correct:1, verse:"Dios tomó una costilla de Adán y de ella formó a la mujer." },
+{ reference:"Génesis 2:16-17", question:"¿Qué le prohibió Dios a Adán comer en el huerto del Edén?",
+  options:["El fruto del árbol de la vida","Cualquier fruto del huerto","El fruto del árbol del conocimiento del bien y el mal","Las uvas del huerto"],
+  correct:2, verse:"\"Mas del árbol de la ciencia del bien y del mal no comerás.\" — Génesis 2:17" },
+{ reference:"Génesis 4:1-8", question:"¿Quién mató a su hermano Abel por celos?",
+  options:["Set","Caín","Enoc","Lamec"],
+  correct:1, verse:"Caín se levantó contra su hermano Abel y lo mató." },
+{ reference:"Génesis 6-9", question:"¿Quién construyó el arca por instrucción de Dios?",
+  options:["Abraham","Moisés","Noé","Job"],
+  correct:2, verse:"Noé obedeció y construyó el arca tal como Dios se lo mandó." },
+{ reference:"Génesis 7:11-12", question:"¿Cuántos días y noches llovió durante el diluvio?",
+  options:["7 días","40 días","100 días","150 días"],
+  correct:1, verse:"\"Y hubo lluvia sobre la tierra cuarenta días y cuarenta noches.\" — Génesis 7:12" },
+{ reference:"Génesis 7:7-13", question:"¿Cuántas personas en total entraron en el arca de Noé?",
+  options:["4","6","8","12"],
+  correct:2, verse:"Noé, su esposa, sus tres hijos y las esposas de ellos: ocho personas en total." },
+{ reference:"Génesis 11:1-9", question:"¿Qué construían los hombres cuando Dios confundió su idioma?",
+  options:["Un templo","Un arca","La torre de Babel","Un altar"],
+  correct:2, verse:"Por eso se llamó Babel, porque allí confundió Jehová el lenguaje de toda la tierra." },
+{ reference:"Génesis 12:1-4", question:"¿A qué patriarca llamó Dios a dejar su tierra para ir a una tierra que le mostraría?",
+  options:["Isaac","Abraham","Jacob","Lot"],
+  correct:1, verse:"\"Vete de tu tierra... a la tierra que te mostraré.\" — Génesis 12:1" },
+{ reference:"Génesis 22:1-14", question:"¿A quién estuvo dispuesto Abraham a ofrecer en sacrificio en obediencia a Dios?",
+  options:["A Ismael","A Isaac","A Jacob","A Esaú"],
+  correct:1, verse:"Dios proveyó un carnero en lugar de Isaac, el hijo de la promesa." },
+{ reference:"Génesis 32:22-28", question:"¿Qué nuevo nombre le dio Dios a Jacob después de luchar con él?",
+  options:["Israel","Judá","Efraín","Benjamín"],
+  correct:0, verse:"\"No se dirá más tu nombre Jacob, sino Israel.\" — Génesis 32:28" },
+{ reference:"Génesis 37", question:"¿Qué regalo especial le dio Jacob a su hijo José que causó envidia en sus hermanos?",
+  options:["Una espada","Una túnica de colores","Un anillo de oro","Un báculo"],
+  correct:1, verse:"Israel amaba a José más que a sus otros hijos y le hizo una túnica de colores." },
+{ reference:"Génesis 41", question:"¿En qué país llegó José a ser gobernador, solo debajo de Faraón?",
+  options:["Babilonia","Canaán","Egipto","Asiria"],
+  correct:2, verse:"Faraón puso a José sobre toda la tierra de Egipto." },
+{ reference:"Éxodo 2:1-10", question:"¿En qué fue puesto el bebé Moisés para salvarlo de la muerte?",
+  options:["Una cesta de juncos en el río","Una tienda en el desierto","Los brazos de su hermana","Una carreta"],
+  correct:0, verse:"Su madre lo puso en una arquilla de juncos y la puso en el río." },
+{ reference:"Éxodo 3:1-4", question:"¿Cómo se le apareció Dios a Moisés por primera vez?",
+  options:["En un sueño","En una zarza que ardía sin consumirse","En una nube de humo","En una columna de piedra"],
+  correct:1, verse:"El ángel de Jehová se le apareció en una llama de fuego en medio de una zarza." },
+{ reference:"Éxodo 7-12", question:"¿Cuántas plagas envió Dios sobre Egipto antes de que Faraón dejara ir al pueblo?",
+  options:["7","10","12","3"],
+  correct:1, verse:"Dios envió diez plagas sobre Egipto hasta que Faraón dejó salir a Israel." },
+{ reference:"Éxodo 14", question:"¿Qué mar cruzó el pueblo de Israel en seco al huir de Egipto?",
+  options:["El mar Muerto","El mar Mediterráneo","El Mar Rojo","El mar de Galilea"],
+  correct:2, verse:"Jehová abrió camino en el Mar Rojo y el pueblo pasó en seco." },
+{ reference:"Éxodo 20", question:"¿Cuántos mandamientos le dio Dios a Moisés en el monte Sinaí?",
+  options:["Siete","Diez","Doce","Cinco"],
+  correct:1, verse:"Dios entregó los Diez Mandamientos escritos en tablas de piedra." },
+{ reference:"Números 14:26-35", question:"¿Cuántos años vagó el pueblo de Israel en el desierto antes de entrar a la tierra prometida?",
+  options:["10 años","20 años","40 años","70 años"],
+  correct:2, verse:"Israel anduvo cuarenta años en el desierto por su incredulidad." },
+{ reference:"Josué 6", question:"¿Qué sucedió con los muros de Jericó cuando el pueblo rodeó la ciudad y gritó?",
+  options:["Se abrieron unas puertas secretas","Los muros cayeron","Se incendiaron","No pasó nada"],
+  correct:1, verse:"El pueblo gritó, tocaron las trompetas, y el muro se derrumbó." },
+{ reference:"Josué 24:15", question:"¿Qué declaró Josué que haría él y su casa, sin importar lo que otros decidieran?",
+  options:["Conquistar más tierras","Servir a Jehová","Volver a Egipto","Construir un templo"],
+  correct:1, verse:"\"Yo y mi casa serviremos a Jehová.\" — Josué 24:15" },
+{ reference:"Jueces 16", question:"¿Qué juez de Israel perdió su fuerza sobrenatural al cortarle el cabello?",
+  options:["Gedeón","Sansón","Débora","Otoniel"],
+  correct:1, verse:"Su fuerza se apartó de él porque Dalila hizo que le cortaran el cabello." },
+{ reference:"Rut 1", question:"¿Cómo se llamaba la suegra de Rut, a quien ella decidió acompañar?",
+  options:["Noemí","Ana","Sara","Débora"],
+  correct:0, verse:"Rut le dijo a Noemí: \"a dondequiera que tú fueres, iré yo.\"" },
+{ reference:"1 Samuel 16:1-13", question:"¿Quién ungió a David como futuro rey de Israel?",
+  options:["El sacerdote Elí","El profeta Samuel","El rey Saúl","El profeta Natán"],
+  correct:1, verse:"Samuel ungió a David en medio de sus hermanos, y el Espíritu de Jehová vino sobre él." },
+{ reference:"1 Samuel 17", question:"¿Con qué venció David al gigante filisteo Goliat?",
+  options:["Una espada","Una honda y una piedra","Un arco","Sus propias manos"],
+  correct:1, verse:"David venció a Goliat con una honda y una piedra, en el nombre de Jehová." },
+{ reference:"1 Reyes 3:5-14", question:"¿Qué le pidió Salomón a Dios que le diera, en lugar de riquezas o larga vida?",
+  options:["Poder militar","Sabiduría","Fama","Muchas esposas"],
+  correct:1, verse:"Salomón pidió un corazón entendido para juzgar al pueblo con sabiduría." },
+{ reference:"1 Reyes 18", question:"¿En qué monte desafió Elías a los profetas de Baal?",
+  options:["Monte Sinaí","Monte Carmelo","Monte de los Olivos","Monte Nebo"],
+  correct:1, verse:"Elías retó a los profetas de Baal en el monte Carmelo, y Jehová respondió con fuego." },
+{ reference:"2 Reyes 2:11", question:"¿Cómo subió el profeta Elías al cielo?",
+  options:["Caminando","En un carro de fuego, en un torbellino","En una nube","Nadie lo sabe"],
+  correct:1, verse:"\"He aquí un carro de fuego... y Elías subió al cielo en un torbellino.\" — 2 Reyes 2:11" },
+{ reference:"Job 1-2", question:"¿Qué hombre justo perdió todo lo que tenía pero mantuvo su fe en Dios?",
+  options:["Job","Set","Elifaz","Zofar"],
+  correct:0, verse:"A pesar de perderlo todo, Job no pecó ni culpó a Dios." },
+{ reference:"Ester 4", question:"¿Qué reina judía en Persia arriesgó su vida para salvar a su pueblo?",
+  options:["Ester","Vasti","Débora","Rahab"],
+  correct:0, verse:"Ester se presentó ante el rey para interceder por su pueblo." },
+{ reference:"Daniel 3", question:"¿Quiénes fueron echados en el horno de fuego por no adorar la estatua de oro?",
+  options:["David y Jonatán","Sadrac, Mesac y Abed-nego","Elías y Eliseo","Esdras y Nehemías"],
+  correct:1, verse:"Fueron librados del fuego sin que ni siquiera olieran a humo." },
+{ reference:"Daniel 6", question:"¿En qué foso fue echado Daniel por seguir orando a Dios?",
+  options:["El foso de los leones","Un pozo seco","Una cisterna","Una cueva"],
+  correct:0, verse:"Dios cerró la boca de los leones y Daniel no sufrió ningún daño." },
+{ reference:"Jonás 1:17", question:"¿Qué se tragó a Jonás cuando huía de la misión que Dios le había dado?",
+  options:["Una ballena","Un gran pez","Un cocodrilo","Un tiburón"],
+  correct:1, verse:"Jehová tenía preparado un gran pez que se tragó a Jonás." },
+{ reference:"Salmo 23:1", question:"¿Cómo describe David a Dios en el conocido Salmo 23?",
+  options:["Mi rey y señor","Mi pastor","Mi juez","Mi maestro"],
+  correct:1, verse:"\"Jehová es mi pastor; nada me faltará.\" — Salmo 23:1" },
+{ reference:"Proverbios 22:6", question:"¿Qué instrucción da Proverbios sobre la crianza de un niño?",
+  options:["Dale todo lo que pida","Instrúyelo en su camino, y aun cuando fuere viejo no se apartará de él","Déjalo decidir solo","Corrígelo solo cuando sea adulto"],
+  correct:1, verse:"\"Instruye al niño en su camino, y aun cuando fuere viejo no se apartará de él.\" — Proverbios 22:6" },
+{ reference:"Isaías 9:6", question:"¿Qué título profético recibe el Mesías en Isaías 9:6?",
+  options:["Rey de reyes","Príncipe de Paz","León de Judá","Cordero de Dios"],
+  correct:1, verse:"\"Y se llamará su nombre... Príncipe de Paz.\" — Isaías 9:6" },
+{ reference:"Isaías 53", question:"¿Qué capítulo profético del Antiguo Testamento describe al Siervo sufriente, cumplido en Cristo?",
+  options:["Isaías 40","Isaías 53","Isaías 6","Isaías 1"],
+  correct:1, verse:"Isaías 53 anuncia con siglos de anticipación el sufrimiento del Mesías por nuestros pecados." },
+{ reference:"Jeremías 29:11", question:"¿Qué promete Dios en Jeremías 29:11 acerca de sus pensamientos hacia su pueblo?",
+  options:["Pensamientos de paz y no de mal","Pensamientos de juicio","Pensamientos de guerra","Pensamientos de castigo"],
+  correct:0, verse:"\"Porque yo sé los pensamientos que tengo acerca de vosotros... pensamientos de paz.\" — Jeremías 29:11" },
+{ reference:"Miqueas 5:2", question:"¿Qué ciudad profetizó Miqueas como lugar de nacimiento del Mesías?",
+  options:["Jerusalén","Nazaret","Belén","Jericó"],
+  correct:2, verse:"De Belén saldría el que sería Señor en Israel, según la profecía de Miqueas." },
+{ reference:"Lucas 2:1-7", question:"¿En qué ciudad nació Jesús?",
+  options:["Jerusalén","Nazaret","Belén","Capernaúm"],
+  correct:2, verse:"María dio a luz a su hijo primogénito en Belén." },
+{ reference:"Lucas 2:7", question:"¿Dónde fue puesto el niño Jesús al nacer, por no haber lugar en el mesón?",
+  options:["En una cuna de oro","En un pesebre","En los brazos de un pastor","En una cesta"],
+  correct:1, verse:"\"Lo acostó en un pesebre, porque no había lugar para ellos en el mesón.\" — Lucas 2:7" },
+{ reference:"Mateo 2:1-11", question:"¿Quiénes vinieron desde oriente siguiendo una estrella para adorar a Jesús?",
+  options:["Los pastores","Los magos de oriente","Los sacerdotes del templo","Los discípulos"],
+  correct:1, verse:"Los magos vieron su estrella y vinieron a adorarlo con oro, incienso y mirra." },
+{ reference:"Mateo 3:13-17", question:"¿Quién bautizó a Jesús en el río Jordán?",
+  options:["El apóstol Pedro","Juan el Bautista","El sumo sacerdote","Nicodemo"],
+  correct:1, verse:"Al ser bautizado, una voz del cielo dijo: \"Este es mi Hijo amado.\"" },
+{ reference:"Mateo 4:1-2", question:"¿Cuántos días ayunó Jesús en el desierto antes de ser tentado por el diablo?",
+  options:["7 días","40 días","3 días","12 días"],
+  correct:1, verse:"Jesús había ayunado cuarenta días y cuarenta noches." },
+{ reference:"Mateo 10:1-4", question:"¿Cuántos discípulos principales escogió Jesús como apóstoles?",
+  options:["Siete","Diez","Doce","Setenta"],
+  correct:2, verse:"Jesús llamó a sus doce discípulos y les dio autoridad." },
+{ reference:"Mateo 5-7", question:"¿Cómo se conoce el famoso discurso de Jesús que incluye las Bienaventuranzas?",
+  options:["El Sermón del Monte","La Gran Comisión","El Discurso del Templo","La Parábola Mayor"],
+  correct:0, verse:"En el Sermón del Monte, Jesús enseñó las Bienaventuranzas y mucho más." },
+{ reference:"Mateo 5:3", question:"¿Cómo comienza la primera Bienaventuranza: \"Bienaventurados los ___ de espíritu\"?",
+  options:["Fuertes","Pobres","Sabios","Puros"],
+  correct:1, verse:"\"Bienaventurados los pobres en espíritu, porque de ellos es el reino de los cielos.\" — Mateo 5:3" },
+{ reference:"Mateo 6:9-13", question:"¿Qué oración enseñó Jesús a sus discípulos cuando le pidieron que les enseñara a orar?",
+  options:["El Padre Nuestro","El Salmo 23","El Shemá","La bendición sacerdotal"],
+  correct:0, verse:"\"Padre nuestro que estás en los cielos, santificado sea tu nombre...\" — Mateo 6:9" },
+{ reference:"Mateo 6:33", question:"Según Mateo 6:33, ¿qué debemos buscar primeramente?",
+  options:["Riquezas y bienestar","El reino de Dios y su justicia","Sabiduría humana","Descanso y paz"],
+  correct:1, verse:"\"Mas buscad primeramente el reino de Dios y su justicia.\" — Mateo 6:33" },
+{ reference:"Juan 2:1-11", question:"¿En qué convirtió Jesús el agua durante una boda, en su primer milagro registrado?",
+  options:["Aceite","Vino","Miel","Leche"],
+  correct:1, verse:"Este fue el primer milagro de Jesús, hecho en Caná de Galilea." },
+{ reference:"Mateo 14:13-21", question:"¿Con cuántos panes y peces alimentó Jesús a más de 5,000 personas?",
+  options:["Dos panes y cinco peces","Cinco panes y dos peces","Diez panes y tres peces","Un pan y un pez"],
+  correct:1, verse:"Con cinco panes y dos peces, todos comieron y se sobraron doce cestas." },
+{ reference:"Juan 11", question:"¿A quién resucitó Jesús después de llevar cuatro días muerto?",
+  options:["Jairo","Lázaro","El hijo de la viuda de Naín","Un centurión"],
+  correct:1, verse:"Jesús clamó a gran voz: \"Lázaro, ven fuera\", y el muerto salió." },
+{ reference:"Marcos 2:1-12", question:"¿Cómo bajaron a un paralítico hasta donde estaba Jesús, debido a la multitud?",
+  options:["Por la puerta principal","Rompiendo el techo de la casa","Por una ventana","Nadando por un río"],
+  correct:1, verse:"Abrieron el techo y bajaron el lecho donde yacía el paralítico." },
+{ reference:"Lucas 15:11-32", question:"¿Cómo se conoce la parábola del hijo que malgastó su herencia y luego regresó a casa?",
+  options:["El hijo pródigo","El buen samaritano","El sembrador","La oveja perdida"],
+  correct:0, verse:"El padre corrió a recibirlo y dijo: \"este mi hijo... se había perdido, y es hallado.\"" },
+{ reference:"Lucas 10:25-37", question:"En una famosa parábola de Jesús, ¿quién ayudó a un hombre herido que otros ignoraron?",
+  options:["Un sacerdote","Un levita","Un samaritano","Un fariseo"],
+  correct:2, verse:"El samaritano tuvo compasión, vendó sus heridas y pagó su cuidado." },
+{ reference:"Mateo 13:1-9", question:"¿Qué elemento central tiene la parábola del sembrador?",
+  options:["Un pastor y sus ovejas","Una semilla y diferentes tipos de terreno","Un rey y sus siervos","Un pescador y su red"],
+  correct:1, verse:"La semilla cayó en diferentes terrenos: junto al camino, entre piedras, entre espinos y en buena tierra." },
+{ reference:"Mateo 25:1-13", question:"¿Cuántas vírgenes hay en la parábola de las lámparas, la mitad prudentes y la mitad insensatas?",
+  options:["Cinco","Ocho","Diez","Doce"],
+  correct:2, verse:"Cinco eran prudentes y llevaron aceite extra; cinco eran insensatas." },
+{ reference:"Mateo 26:14-16", question:"¿Quién traicionó a Jesús por treinta piezas de plata?",
+  options:["Tomás","Judas Iscariote","Felipe","Bartolomé"],
+  correct:1, verse:"Judas convino con los sacerdotes en entregar a Jesús por treinta piezas de plata." },
+{ reference:"Mateo 26:36-46", question:"¿En qué huerto oró Jesús angustiado antes de ser arrestado?",
+  options:["El huerto de Getsemaní","El huerto del Edén","El huerto de José de Arimatea","El huerto del templo"],
+  correct:0, verse:"Jesús oró en Getsemaní: \"no sea como yo quiero, sino como tú.\"" },
+{ reference:"Mateo 26:69-75", question:"¿Quién negó tres veces conocer a Jesús la noche de su arresto?",
+  options:["Judas","Pedro","Juan","Tomás"],
+  correct:1, verse:"Al cantar el gallo, Pedro recordó las palabras de Jesús y lloró amargamente." },
+{ reference:"Mateo 27:11-26", question:"¿Quién fue el gobernador romano que autorizó la crucifixión de Jesús?",
+  options:["Herodes","Poncio Pilato","César Augusto","Félix"],
+  correct:1, verse:"Pilato, aunque no halló delito en Jesús, entregó la sentencia por presión de la multitud." },
+{ reference:"Lucas 23:33", question:"¿Cómo se llamaba el lugar donde Jesús fue crucificado?",
+  options:["El Gólgota (lugar de la Calavera)","El monte Sinaí","El monte de los Olivos","El valle de Cedrón"],
+  correct:0, verse:"Lo crucificaron en el lugar llamado de la Calavera, el Gólgota." },
+{ reference:"Mateo 28:1-6", question:"¿En qué día después de morir resucitó Jesús?",
+  options:["Al primer día","Al tercer día","A los siete días","A los cuarenta días"],
+  correct:1, verse:"El ángel dijo: \"No está aquí, pues ha resucitado, como dijo.\"" },
+{ reference:"Juan 20:11-16", question:"Según el Evangelio de Juan, ¿quién fue la primera persona en ver a Jesús resucitado?",
+  options:["Pedro","Juan","María Magdalena","Tomás"],
+  correct:2, verse:"Jesús la llamó por su nombre: \"María\", y ella lo reconoció." },
+{ reference:"Hechos 1:9-11", question:"¿Qué sucedió con Jesús cuarenta días después de resucitar, ante sus discípulos?",
+  options:["Ascendió al cielo","Desapareció sin explicación","Volvió a Nazaret","Se escondió en Jerusalén"],
+  correct:0, verse:"Mientras lo miraban, fue alzado, y una nube lo recibió y lo ocultó de sus ojos." },
+{ reference:"Hechos 2:1-4", question:"¿Qué día especial descendió el Espíritu Santo sobre los discípulos con lenguas como de fuego?",
+  options:["El día de Pentecostés","La Pascua","El día de la Ascensión","El Sabbath"],
+  correct:0, verse:"Todos fueron llenos del Espíritu Santo y comenzaron a hablar en otras lenguas." },
+{ reference:"Hechos 9:1-19", question:"¿Quién se convirtió al cristianismo tras ver una luz del cielo en el camino a Damasco?",
+  options:["Bernabé","Saulo (más tarde llamado Pablo)","Esteban","Felipe"],
+  correct:1, verse:"Una luz del cielo lo rodeó y una voz le dijo: \"Saulo, Saulo, ¿por qué me persigues?\"" },
+{ reference:"Hechos 7:54-60", question:"¿Quién fue el primer mártir cristiano, apedreado por su testimonio de fe?",
+  options:["Esteban","Santiago","Felipe","Timoteo"],
+  correct:0, verse:"Esteban, lleno del Espíritu Santo, pidió a Dios que no les tomara en cuenta ese pecado." },
+{ reference:"Hechos 16:25-26", question:"¿Qué ocurrió mientras Pablo y Silas oraban y cantaban himnos estando presos en Filipos?",
+  options:["Un ángel los liberó en silencio","Un terremoto abrió las puertas de la cárcel","Los guardias los soltaron por lástima","Nada, siguieron presos"],
+  correct:1, verse:"Sobrevino un terremoto tan grande que las puertas se abrieron y las cadenas se soltaron." },
+{ reference:"Hechos 1:8", question:"¿Qué prometió Jesús que recibirían los discípulos para ser sus testigos hasta lo último de la tierra?",
+  options:["Riquezas","Poder, al venir el Espíritu Santo sobre ellos","Un nuevo templo","Autoridad política"],
+  correct:1, verse:"\"Recibiréis poder, cuando haya venido sobre vosotros el Espíritu Santo... me seréis testigos.\" — Hechos 1:8" },
+{ reference:"Romanos 3:23", question:"¿Qué declara Romanos 3:23 acerca de toda la humanidad?",
+  options:["Todos son justos por naturaleza","Todos pecaron y están destituidos de la gloria de Dios","Solo algunos pecaron","Nadie puede pecar más"],
+  correct:1, verse:"\"Por cuanto todos pecaron, y están destituidos de la gloria de Dios.\" — Romanos 3:23" },
+{ reference:"Romanos 6:23", question:"Según Romanos 6:23, ¿cuál es la dádiva de Dios, en contraste con la paga del pecado?",
+  options:["Riquezas terrenales","Vida eterna en Cristo Jesús","Sabiduría humana","Larga vida"],
+  correct:1, verse:"\"La paga del pecado es muerte, mas la dádiva de Dios es vida eterna.\" — Romanos 6:23" },
+{ reference:"Romanos 8:28", question:"¿Qué promete Romanos 8:28 a los que aman a Dios?",
+  options:["Que nunca tendrán problemas","Que todas las cosas les ayudan a bien","Que serán ricos","Que vivirán sin tentación"],
+  correct:1, verse:"\"A los que aman a Dios, todas las cosas les ayudan a bien.\" — Romanos 8:28" },
+{ reference:"1 Corintios 13", question:"¿Qué capítulo de la Biblia es conocido popularmente como \"el capítulo del amor\"?",
+  options:["Juan 3","1 Corintios 13","Salmo 100","Romanos 12"],
+  correct:1, verse:"Este capítulo describe cómo es el verdadero amor: paciente, benigno, y que todo lo sufre." },
+{ reference:"1 Corintios 13:13", question:"Según 1 Corintios 13:13, ¿cuál de estas tres virtudes es la mayor?",
+  options:["La fe","La esperanza","El amor","La paciencia"],
+  correct:2, verse:"\"Y estos tres permanecen: la fe, la esperanza y el amor... el mayor de ellos es el amor.\" — 1 Corintios 13:13" },
+{ reference:"Gálatas 5:22-23", question:"¿Cuál es el primer fruto del Espíritu que Pablo menciona en Gálatas 5:22?",
+  options:["Gozo","Amor","Paz","Paciencia"],
+  correct:1, verse:"El fruto del Espíritu es amor, gozo, paz, paciencia, benignidad, bondad, fe, mansedumbre y templanza." },
+{ reference:"Efesios 2:8-9", question:"Según Efesios 2:8-9, ¿por medio de qué somos salvos, para que nadie se gloríe?",
+  options:["Por nuestras buenas obras","Por gracia, mediante la fe, no por obras","Por guardar la ley","Por nuestro esfuerzo"],
+  correct:1, verse:"\"Porque por gracia sois salvos por medio de la fe... no por obras.\" — Efesios 2:8-9" },
+{ reference:"Efesios 6:10-17", question:"¿Qué instó Pablo a los efesios a vestirse para poder resistir las asechanzas del diablo?",
+  options:["Ropas de sacerdote","Toda la armadura de Dios","Vestiduras blancas","Un manto de oración"],
+  correct:1, verse:"\"Vestíos de toda la armadura de Dios, para que podáis estar firmes.\" — Efesios 6:11" },
+{ reference:"Filipenses 4:13", question:"¿Qué afirma Pablo que puede hacer \"en Cristo que me fortalece\"?",
+  options:["Todo lo puedo","Solo lo fácil","Nada sin ayuda humana","Poco, pero con esfuerzo"],
+  correct:0, verse:"\"Todo lo puedo en Cristo que me fortalece.\" — Filipenses 4:13" },
+{ reference:"2 Timoteo 1:7", question:"Según 2 Timoteo 1:7, ¿qué espíritu NO nos ha dado Dios?",
+  options:["Espíritu de poder","Espíritu de cobardía","Espíritu de amor","Espíritu de dominio propio"],
+  correct:1, verse:"\"No nos ha dado Dios espíritu de cobardía, sino de poder, de amor y de dominio propio.\" — 2 Timoteo 1:7" },
+{ reference:"Santiago 4:7", question:"Según Santiago 4:7, ¿qué sucede si resistimos al diablo, después de someternos a Dios?",
+  options:["Nos atacará más fuerte","Huirá de nosotros","No pasará nada","Nos ignorará"],
+  correct:1, verse:"\"Someteos, pues, a Dios; resistid al diablo, y huirá de vosotros.\" — Santiago 4:7" },
+{ reference:"1 Juan 4:8", question:"¿Con qué palabra describe Juan la esencia misma de Dios: \"Dios es ___\"?",
+  options:["Justicia","Amor","Poder","Luz"],
+  correct:1, verse:"\"El que no ama, no ha conocido a Dios; porque Dios es amor.\" — 1 Juan 4:8" },
+{ reference:"Apocalipsis 21:4", question:"¿Qué promete Dios hacer con las lágrimas de su pueblo, según Apocalipsis 21:4?",
+  options:["Guardarlas como recuerdo","Enjugar toda lágrima de sus ojos","Multiplicarlas","Ignorarlas"],
+  correct:1, verse:"\"Enjugará Dios toda lágrima... ni habrá más llanto, ni clamor, ni dolor.\" — Apocalipsis 21:4" },
+{ reference:"Marcos 16:15", question:"¿Qué comisión final dio Jesús a sus discípulos antes de ascender al cielo?",
+  options:["Quedarse en Jerusalén para siempre","Ir por todo el mundo y predicar el evangelio","Construir un templo nuevo","Volver a sus oficios anteriores"],
+  correct:1, verse:"\"Id por todo el mundo y predicad el evangelio a toda criatura.\" — Marcos 16:15" },
+{ reference:"Índice de la Biblia", question:"¿Cuántos libros tiene el Antiguo Testamento en la Biblia protestante?",
+  options:["27","39","66","24"],
+  correct:1, verse:"El Antiguo Testamento tiene 39 libros, desde Génesis hasta Malaquías." },
+{ reference:"Índice de la Biblia", question:"¿Cuántos libros tiene el Nuevo Testamento?",
+  options:["27","39","66","12"],
+  correct:0, verse:"El Nuevo Testamento tiene 27 libros, desde Mateo hasta Apocalipsis." },
+{ reference:"Mateo, Marcos, Lucas y Juan", question:"¿Cuáles son los cuatro Evangelios del Nuevo Testamento?",
+  options:["Mateo, Marcos, Lucas y Juan","Hechos, Romanos, Gálatas y Santiago","Génesis, Éxodo, Levítico y Números","Juan, Judas, Santiago y Pedro"],
+  correct:0, verse:"Los cuatro Evangelios narran la vida, muerte y resurrección de Jesucristo." },
+{ reference:"Génesis 1", question:"¿Cuál es el primer libro de la Biblia?",
+  options:["Éxodo","Génesis","Salmos","Mateo"],
+  correct:1, verse:"Génesis significa \"origen\" y relata la creación del mundo." },
+{ reference:"Apocalipsis 1", question:"¿Cuál es el último libro de la Biblia?",
+  options:["Malaquías","Judas","Apocalipsis","2 Pedro"],
+  correct:2, verse:"Apocalipsis cierra las Escrituras con la revelación de Jesucristo." },
+];
+
+const TEAM_COLORS = ['#ffc857', '#ff5d8f', '#2dd4bf', '#a78bfa'];
+const QUESTION_TIME = 40; // segundos por pregunta
+
+let mode = 'individual'; // 'individual' | 'team'
+let questions = []; // preguntas de la partida actual (subconjunto aleatorio de questionBank)
+let questionsPerGame = 15;
+let currentQuestion = 0;
+let score = 0;
+let answered = false;
+let userAnswers = [];
+
+let teamCount = 2;
+let teams = []; // {name, color, score}
+let activeTeamIndex = 0; // se mantiene para compatibilidad, ya no define turnos
+let phase = 'searching'; // 'searching' -> equipos buscando | 'answering' -> un equipo confirmando su respuesta
+let buzzedTeamIndex = null;
+let excludedTeams = [];
+let timeLeftAtBuzz = 0;
+
+let timerInterval = null;
+let timeLeft = QUESTION_TIME;
+let paused = false;
+
+// ==================== GUARDADO AUTOMÁTICO (localStorage) ====================
+// Así, si alguien recarga el navegador a mitad del juego, se puede continuar
+// donde quedó en vez de perder los puntajes y las respuestas avanzadas.
+const STORAGE_KEY = 'triviaBiblicaCultoJuvenil_v1';
+
+function saveState() {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            mode, questions, currentQuestion, score, userAnswers, teams, activeTeamIndex
+        }));
+    } catch (e) { /* si el navegador bloquea localStorage, el juego sigue funcionando igual, solo sin auto-guardado */ }
+}
+
+function loadSavedState() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+}
+
+function clearSavedState() {
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+}
+
+function continueGame() {
+    const saved = loadSavedState();
+    if (!saved) return;
+    mode = saved.mode;
+    questions = saved.questions;
+    currentQuestion = saved.currentQuestion;
+    score = saved.score;
+    userAnswers = saved.userAnswers;
+    teams = saved.teams;
+    activeTeamIndex = saved.activeTeamIndex;
+
+    if (mode === 'individual') {
+        document.getElementById('turnBanner').style.display = 'none';
+        document.getElementById('scoreboard').innerHTML =
+            '<div class="team-chip active-team" style="flex:none; margin:0 auto;"><div class="t-name">Tus aciertos</div><div class="t-score" id="individualScoreChip">' + score + '</div></div>';
+    } else {
+        document.getElementById('turnBanner').style.display = 'block';
+    }
+    showScreen('quizScreen');
+    renderQuestion();
+}
+
+function checkForResumeBanner() {
+    const saved = loadSavedState();
+    const el = document.getElementById('resumeBanner');
+    if (saved && saved.currentQuestion < questions.length) {
+        el.style.display = 'block';
+        el.querySelector('span').textContent = 'Sesión sin terminar: iban en la pregunta ' + (saved.currentQuestion + 1) + ' de ' + questions.length + '.';
+    } else {
+        el.style.display = 'none';
+    }
+}
+
+function startFresh(fn) {
+    clearSavedState();
+    fn();
+}
+
+function setQuestionCount(n) {
+    questionsPerGame = n;
+    document.querySelectorAll('.qcount-btn').forEach(b => {
+        b.classList.toggle('qcount-active', parseInt(b.dataset.n, 10) === n);
+    });
+}
+
+// ==================== SONIDO SIMPLE (Web Audio, sin archivos externos) ====================
+let audioCtx = null;
+function beep(freq, duration, type='sine', vol=0.15) {
+    try {
+        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.value = freq;
+        gain.gain.value = vol;
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.stop(audioCtx.currentTime + duration);
+    } catch(e) {}
+}
+const sndTick = () => beep(880, 0.08, 'square', 0.06);
+const sndCorrect = () => { beep(660,0.12); setTimeout(()=>beep(880,0.16),100); setTimeout(()=>beep(1100,0.2),200); };
+const sndWrong = () => { beep(220,0.25,'sawtooth',0.12); };
+
+// ==================== ALEATORIEDAD ====================
+function shuffleArray(arr) {
+    const copy = [...arr];
+    for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+}
+
+// Arma la ronda: escoge N preguntas al azar del banco y revuelve el orden
+// de las opciones de cada una (para que la respuesta correcta no siempre
+// caiga en la misma letra).
+function buildRound(n) {
+    const pool = shuffleArray(questionBank).slice(0, Math.min(n, questionBank.length));
+    return pool.map(q => {
+        const order = shuffleArray(q.options.map((_, i) => i));
+        return {
+            reference: q.reference,
+            question: q.question,
+            verse: q.verse,
+            options: order.map(i => q.options[i]),
+            correct: order.indexOf(q.correct)
+        };
+    });
+}
+
+// ==================== NAVEGACIÓN DE PANTALLAS ====================
+function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+}
+
+// ==================== MODO INDIVIDUAL ====================
+function startIndividual() {
+    mode = 'individual';
+    questions = buildRound(questionsPerGame);
+    currentQuestion = 0; score = 0; userAnswers = [];
+    document.getElementById('turnBanner').style.display = 'none';
+    document.getElementById('scoreboard').innerHTML =
+        '<div class="team-chip active-team" style="flex:none; margin:0 auto;"><div class="t-name">Tus aciertos</div><div class="t-score" id="individualScoreChip">0</div></div>';
+    showScreen('quizScreen');
+    renderQuestion();
+    saveState();
+}
+
+// ==================== CONFIGURACIÓN DE EQUIPOS ====================
+function goToTeamSetup() {
+    renderTeamInputs();
+    showScreen('teamSetupScreen');
+}
+
+function changeTeamCount(delta) {
+    teamCount = Math.min(4, Math.max(2, teamCount + delta));
+    document.getElementById('teamCountLabel').textContent = teamCount;
+    renderTeamInputs();
+}
+
+function renderTeamInputs() {
+    const wrap = document.getElementById('teamNameInputs');
+    wrap.innerHTML = '';
+    for (let i = 0; i < teamCount; i++) {
+        const row = document.createElement('div');
+        row.className = 'team-setup-row';
+        row.innerHTML =
+            '<span class="team-color-dot" style="background:' + TEAM_COLORS[i] + ';"></span>' +
+            '<input type="text" id="teamNameInput' + i + '" placeholder="Nombre del equipo ' + (i+1) + '" maxlength="20">';
+        wrap.appendChild(row);
+    }
+}
+
+function startTeamMode() {
+    mode = 'team';
+    questions = buildRound(questionsPerGame);
+    teams = [];
+    for (let i = 0; i < teamCount; i++) {
+        const val = document.getElementById('teamNameInput' + i).value.trim();
+        teams.push({ name: val || ('Equipo ' + (i+1)), color: TEAM_COLORS[i], score: 0 });
+    }
+    activeTeamIndex = 0;
+    currentQuestion = 0;
+    userAnswers = [];
+    document.getElementById('turnBanner').style.display = 'block';
+    showScreen('quizScreen');
+    renderScoreboard();
+    renderQuestion();
+    saveState();
+}
+
+function renderScoreboard(highlightIndex) {
+    const sb = document.getElementById('scoreboard');
+    sb.innerHTML = teams.map((t, i) =>
+        '<div class="team-chip' + (i === highlightIndex ? ' active-team' : '') + '" style="border-color:' + (i===highlightIndex ? t.color : 'transparent') + '">' +
+            '<div class="t-name" style="color:' + t.color + '">' + t.name + '</div>' +
+            '<div class="t-score">' + t.score + '</div>' +
+        '</div>'
+    ).join('');
+}
+
+function renderBuzzButtons() {
+    const wrap = document.getElementById('buzzButtons');
+    wrap.innerHTML = teams.map((t, i) => {
+        const isOut = excludedTeams.includes(i);
+        return '<button class="buzz-btn" style="border-color:' + t.color + (isOut ? ';opacity:.3' : '') + '" ' +
+            (isOut ? 'disabled' : 'onclick="handleBuzz(' + i + ')"') + '>' +
+            '🙌 ' + t.name + (isOut ? ' (ya falló)' : '') +
+            '</button>';
+    }).join('');
+}
+
+// ==================== PREGUNTAS ====================
+function renderQuestion() {
+    const q = questions[currentQuestion];
+    document.getElementById('bookRef').textContent = q.reference;
+    document.getElementById('questionText').textContent = q.question;
+    document.getElementById('quizCounter').textContent = 'Pregunta ' + (currentQuestion + 1) + ' / ' + questions.length;
+    document.getElementById('feedback').classList.remove('show', 'correct-fb', 'wrong-fb');
+    document.getElementById('btnNext').classList.remove('show');
+    answered = false;
+
+    // en modo equipos, esta pregunta es del equipo en turno; sin timbre
+    phase = 'answering';
+    buzzedTeamIndex = (mode === 'team') ? activeTeamIndex : null;
+    excludedTeams = [];
+    timeLeftAtBuzz = 0;
+
+    const letters = ['A', 'B', 'C', 'D'];
+    const optsContainer = document.getElementById('optionsContainer');
+    optsContainer.innerHTML = '';
+    optsContainer.style.display = 'flex';
+    q.options.forEach((opt, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.innerHTML = '<span class="opt-letter">' + letters[i] + '</span><span>' + opt + '</span>';
+        btn.onclick = () => selectOption(i);
+        optsContainer.appendChild(btn);
+    });
+
+    document.getElementById('buzzButtons').style.display = 'none';
+
+    if (mode === 'team') {
+        const t = teams[activeTeamIndex];
+        document.getElementById('turnBanner').style.display = 'block';
+        document.getElementById('turnBanner').innerHTML = '🎤 Turno de <span style="color:' + t.color + '">' + t.name + '</span> — ¡respondan rápido!';
+        renderScoreboard(activeTeamIndex);
+    } else {
+        document.getElementById('turnBanner').style.display = 'none';
+    }
+
+    startTimer();
+}
+
+function speedPoints(secondsLeft) {
+    if (secondsLeft >= 30) return 20;
+    if (secondsLeft >= 20) return 15;
+    if (secondsLeft >= 10) return 10;
+    return 5;
+}
+
+function startTimer() {
+    clearInterval(timerInterval);
+    timeLeft = QUESTION_TIME;
+    paused = false;
+    document.getElementById('pauseBtn').textContent = '⏸ Pausar';
+    updateTimerUI();
+    timerInterval = setInterval(() => {
+        if (paused) return;
+        timeLeft--;
+        updateTimerUI();
+        if (timeLeft <= 5 && timeLeft > 0) sndTick();
+        if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+            if (!answered) timeUp();
+        }
+    }, 1000);
+}
+
+function updateTimerUI() {
+    const pct = Math.max(0, (timeLeft / QUESTION_TIME) * 100);
+    const bar = document.getElementById('timerBar');
+    bar.style.width = pct + '%';
+    bar.classList.toggle('low', timeLeft <= 5);
+    document.getElementById('timerNum').textContent = Math.max(0, timeLeft);
+}
+
+function togglePause() {
+    paused = !paused;
+    document.getElementById('pauseBtn').textContent = paused ? '▶ Reanudar' : '⏸ Pausar';
+}
+
+function timeUp() {
+    if (answered) return;
+    answered = true;
+    const q = questions[currentQuestion];
+    document.getElementById('buzzButtons').style.display = 'none';
+    document.getElementById('optionsContainer').style.display = 'flex';
+    const buttons = document.querySelectorAll('.option-btn');
+    buttons.forEach((b, i) => { b.classList.add('option-disabled'); if (i === q.correct) b.classList.add('correct'); });
+    sndWrong();
+    const teamLabel = (mode === 'team') ? teams[activeTeamIndex].name : null;
+    userAnswers.push({ reference: q.reference, question: q.question, isCorrect: false, timedOut: true, team: teamLabel });
+    const fb = document.getElementById('feedback');
+    fb.classList.add('show', 'wrong-fb');
+    fb.innerHTML = '⏰ <strong>¡Se acabó el tiempo! ' + (teamLabel ? teamLabel + ' no ganó puntos.' : 'Nadie ganó puntos.') + '</strong> La respuesta correcta es:<br><br><em>' + q.verse + '</em>';
+    if (mode === 'team') document.getElementById('turnBanner').innerHTML = '⏰ ¡Tiempo agotado para ' + teamLabel + '!';
+    showNextButton();
+    saveState();
+}
+
+function selectOption(index) {
+    if (answered) return;
+    if (mode === 'team' && phase !== 'answering') return; // nadie ha tocado el timbre todavía
+
+    const q = questions[currentQuestion];
+    const isCorrect = (index === q.correct);
+
+    if (mode === 'individual') {
+        clearInterval(timerInterval);
+        answered = true;
+        const buttons = document.querySelectorAll('.option-btn');
+        buttons.forEach(b => b.classList.add('option-disabled'));
+        buttons.forEach((btn, i) => { if (i === q.correct) btn.classList.add('correct'); });
+        if (isCorrect) {
+            score++;
+            document.getElementById('individualScoreChip').textContent = score;
+            sndCorrect();
+            confetti({ particleCount: 70, spread: 75, origin: { y: 0.6 }, colors: ['#ffc857','#ff5d8f','#2dd4bf','#a78bfa'] });
+        } else {
+            buttons[index].classList.add('wrong');
+            sndWrong();
+        }
+        userAnswers.push({ reference: q.reference, question: q.question, isCorrect, team: null });
+        const fb = document.getElementById('feedback');
+        fb.classList.add('show');
+        if (isCorrect) {
+            fb.classList.add('correct-fb'); fb.classList.remove('wrong-fb');
+            fb.innerHTML = '✅ <strong>¡Correcto!</strong><br><br><em>' + q.verse + '</em>';
+        } else {
+            fb.classList.add('wrong-fb'); fb.classList.remove('correct-fb');
+            fb.innerHTML = '❌ <strong>Incorrecto.</strong> La respuesta correcta es:<br><br><em>' + q.verse + '</em>';
+        }
+        showNextButton();
+        saveState();
+        return;
+    }
+
+    // ===== MODO EQUIPOS (por turnos, cada equipo su propia pregunta) =====
+    clearInterval(timerInterval);
+    answered = true;
+    const team = teams[activeTeamIndex];
+    const buttons = document.querySelectorAll('#optionsContainer .option-btn');
+    buttons.forEach(b => b.classList.add('option-disabled'));
+    buttons.forEach((btn, i) => { if (i === q.correct) btn.classList.add('correct'); });
+
+    if (isCorrect) {
+        const pts = speedPoints(timeLeft);
+        team.score += pts;
+        renderScoreboard(activeTeamIndex);
+        sndCorrect();
+        confetti({ particleCount: 90, spread: 80, origin: { y: 0.6 }, colors: [team.color, '#ffc857', '#2dd4bf'] });
+        userAnswers.push({ reference: q.reference, question: q.question, isCorrect: true, team: team.name });
+        const fb = document.getElementById('feedback');
+        fb.classList.add('show', 'correct-fb'); fb.classList.remove('wrong-fb');
+        fb.innerHTML = '✅ <strong>¡' + team.name + ' acertó!</strong> <span class="bonus">+' + pts + ' pts por velocidad</span><br><br><em>' + q.verse + '</em>';
+        document.getElementById('turnBanner').innerHTML = '🏆 ¡Punto para <span style="color:' + team.color + '">' + team.name + '</span>!';
+    } else {
+        buttons[index].classList.add('wrong');
+        sndWrong();
+        userAnswers.push({ reference: q.reference, question: q.question, isCorrect: false, team: team.name });
+        const fb = document.getElementById('feedback');
+        fb.classList.add('show', 'wrong-fb'); fb.classList.remove('correct-fb');
+        fb.innerHTML = '❌ <strong>' + team.name + ' no acertó.</strong> La respuesta correcta es:<br><br><em>' + q.verse + '</em>';
+        document.getElementById('turnBanner').innerHTML = '❌ ' + team.name + ' no ganó puntos esta ronda.';
+    }
+    showNextButton();
+    saveState();
+}
+
+function showNextButton() {
+    const btnNext = document.getElementById('btnNext');
+    btnNext.classList.add('show');
+    btnNext.textContent = (currentQuestion === questions.length - 1) ? '🏁 Ver Resultados' : 'Siguiente ▶';
+}
+
+function nextQuestion() {
+    if (currentQuestion < questions.length - 1) {
+        currentQuestion++;
+        if (mode === 'team') {
+            activeTeamIndex = (activeTeamIndex + 1) % teams.length;
+        }
+        renderQuestion();
+        document.getElementById('quizScreen').scrollIntoView({ behavior: 'smooth' });
+        saveState();
+    } else {
+        showResults();
+    }
+}
+
+// ==================== RESULTADOS ====================
+function showResults() {
+    clearInterval(timerInterval);
+    clearSavedState();
+    showScreen('resultScreen');
+    document.getElementById('individualResultBlock').style.display = (mode === 'individual') ? 'block' : 'none';
+    document.getElementById('teamResultBlock').style.display = (mode === 'team') ? 'block' : 'none';
+
+    let pct, icon, msg;
+
+    if (mode === 'individual') {
+        document.getElementById('resultScore').textContent = score;
+        pct = (score / questions.length) * 100;
+    } else {
+        const sorted = [...teams].sort((a, b) => b.score - a.score);
+        const maxScore = sorted[0].score || 1;
+        const podium = document.getElementById('podium');
+        const order = sorted.length >= 3 ? [sorted[1], sorted[0], sorted[2]] : sorted;
+        const classes = sorted.length >= 3 ? ['podium-2', 'podium-1', 'podium-3'] : ['podium-1', 'podium-2'];
+        const medals = sorted.length >= 3 ? ['🥈', '🥇', '🥉'] : ['🥇', '🥈'];
+        podium.innerHTML = order.map((t, i) =>
+            '<div class="podium-spot ' + classes[i] + '">' +
+                '<div class="p-medal">' + medals[i] + '</div>' +
+                '<div class="podium-bar" style="background:linear-gradient(180deg,' + t.color + 'cc,' + t.color + ')"></div>' +
+                '<div class="p-name">' + t.name + '</div>' +
+                '<div class="p-score">' + t.score + ' pts</div>' +
+            '</div>'
+        ).join('');
+        pct = (sorted[0].score / (questions.length * 15)) * 100;
+        confetti({ particleCount: 180, spread: 100, origin: { y: 0.5 }, colors: [sorted[0].color, '#ffc857', '#2dd4bf'] });
+    }
+
+    if (pct >= 90) { icon = '🏆'; msg = '¡Impresionante! Conocen bien la Palabra de Dios.'; }
+    else if (pct >= 70) { icon = '🌟'; msg = '¡Muy bien jugado! Siguen creciendo en la Palabra.'; }
+    else if (pct >= 50) { icon = '📖'; msg = 'Buen juego. ¡A seguir escudriñando las Escrituras!'; }
+    else { icon = '🙏'; msg = 'Lo importante es que hoy meditamos juntos en la Palabra. ¡Ánimo!'; }
+
+    document.getElementById('resultIcon').textContent = icon;
+    document.getElementById('resultMsg').textContent = msg;
+}
+
+// ==================== INICIALIZAR ====================
+renderTeamInputs();
+showScreen('startScreen');
+checkForResumeBanner();
+setQuestionCount(15);
+</script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"75124c326cb447fe934cde04713ae013","r":1}' crossorigin="anonymous"></script>
+</body>
+</html>
